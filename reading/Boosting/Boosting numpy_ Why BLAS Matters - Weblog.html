@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<!-- saved from url=(0058)http://markus-beuckelmann.de/blog/boosting-numpy-blas.html -->
+<html lang="en" prefix="og: http://ogp.me/ns# fb: https://www.facebook.com/2008/fbml" nighteyeurl="markus-beuckelmann.de" class="gr__markus-beuckelmann_de" nighteye="active"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><style class="anchorjs"></style><style>a {                            color:rgb(140,140,250);                        }                        *::-webkit-scrollbar-track-piece {                            background-color:rgba(255, 255, 255, 0.2) !important;                        }                        *::-webkit-scrollbar-track {                            background-color:rgba(255, 255, 255, 0.3) !important;                        }                        *::-webkit-scrollbar-thumb {                            background-color:rgba(255, 255, 255, 0.5) !important;                        }                        embed[type="application/pdf"] {                            filter:invert(1);                        }</style><style>html {                            color:#000;                            background-image:none !important;                        }                        body {                            background-color:#fff;                             background-image:none !important;                        }                        input, select, textarea, button {                            color:#000;                            background-color:#fff;                        }                        font {                            color:#000;                        }</style><style>html {                            filter: contrast(100%) brightness(100%) saturate(100%);                        }                        .DARKY_Filter {                            width:100%; height:100%;                            position:fixed;                            left:0; top:0;                            pointer-events:none;                            z-index:4000000000;                        }                        .DARKY_YellowFilter {                            background:rgba(255, 255, 0, 0.15);                            opacity:0;                        }                        .DARKY_BlueFilter {                            background:rgba(0, 0, 255, 0.15);                            opacity:0;                        }                        .DARKY_DimFilter {                            background:rgba(0, 0, 0, 0.5);                            opacity:0;                        }                        .DARKY_TransformZ {                            transform:translateZ(0);                        }</style>
+    <title>Boosting numpy: Why BLAS&nbsp;Matters - Weblog</title>
+    <!-- Using the latest rendering mode for IE -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+
+<link rel="canonical" href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html">
+
+        <meta name="author" content="Markus Beuckelmann">
+        <meta name="keywords" content="python,numpy,scipy,blas,lapack,openblas,atlas,intel mkl,virtualenv">
+        <meta name="description" content="I recently noticed that the same code on the same machine had vastly different run times in different virtual environments. This looked a little suspicious to me. Digging deeper, I realized that the reason for this was that numpy was linked against different BLAS libraries in different virtual environments, which ...">
+
+        <meta property="og:site_name" content="Weblog">
+        <meta property="og:type" content="article">
+        <meta property="og:title" content="Boosting numpy: Why BLAS Matters">
+        <meta property="og:url" content="../blog/boosting-numpy-blas.html">
+        <meta property="og:description" content="I recently noticed that the same code on the same machine had vastly different run times in different virtual environments. This looked a little suspicious to me. Digging deeper, I realized that the reason for this was that numpy was linked against different BLAS libraries in different virtual environments, which ...">
+        <meta property="article:published_time" content="2017-04-23">
+            <meta property="article:section" content="Blog">
+            <meta property="article:tag" content="python">
+            <meta property="article:tag" content="numpy">
+            <meta property="article:tag" content="scipy">
+            <meta property="article:tag" content="blas">
+            <meta property="article:tag" content="lapack">
+            <meta property="article:tag" content="openblas">
+            <meta property="article:tag" content="atlas">
+            <meta property="article:tag" content="intel mkl">
+            <meta property="article:tag" content="virtualenv">
+            <meta property="article:author" content="Markus Beuckelmann">
+
+
+    <!-- Bootstrap -->
+        <link rel="stylesheet" href="./Boosting numpy_ Why BLAS Matters - Weblog_files/bootstrap.min.css" type="text/css">
+    <link href="./Boosting numpy_ Why BLAS Matters - Weblog_files/font-awesome.min.css" rel="stylesheet">
+
+    <link href="./Boosting numpy_ Why BLAS Matters - Weblog_files/myfruity.css" rel="stylesheet">
+        <link href="./Boosting numpy_ Why BLAS Matters - Weblog_files/typogrify.css" rel="stylesheet">
+    <link rel="stylesheet" href="./Boosting numpy_ Why BLAS Matters - Weblog_files/style.css" type="text/css">
+        <link href="./Boosting numpy_ Why BLAS Matters - Weblog_files/swipebox.css" rel="stylesheet">
+        <link href="./Boosting numpy_ Why BLAS Matters - Weblog_files/custom.css" rel="stylesheet"><style>@media (max-width:641px) {
+/* This will apply to all screens smaller or equal to 641px. */
+
+    .nav {
+	padding-left: 1.5em;
+    }
+
+    div.container-fluid {
+	margin-left: 0 ! important;
+	margin-right: 0 ! important;
+    }
+
+    /*h1, h2, h3, h4, h5, h6 {
+
+	text-align: center;
+
+    }*/
+
+    article header h1 {
+
+	font-size: 2.0em ! important;
+	text-align: center;
+
+    }
+
+}
+
+@media (max-width:1024px) {
+/* This will apply to all screens smaller or equal to 1024px. */
+
+    div.container-fluid {
+	margin-left: 12%;
+	margin-right: 12%;
+    }
+
+}
+
+@media (max-width:1360px) {
+/* This will apply to all screens smaller or equal to 1360px. */
+
+    div.container-fluid {
+	margin-left: 15%;
+	margin-right: 15%;
+    }
+
+    div.col-sm-9 {
+	width: 100%;
+    }
+
+    div#sidebar {
+	display: none;
+    }
+
+}
+
+@media (min-width:1361px) {
+/* This will apply on all screens larger or equal to 1361px. */
+
+    div.container-fluid {
+	margin-left: 20%;
+	margin-right: 20%;
+    }
+
+    div.col-sm-9 {
+	width: 75%;
+    }
+
+    div#sidebar {
+	display: block;
+    }
+
+}
+</style><style>@font-face {
+    font-family: 'ChristopherHand';
+    src: url('../fonts/comesinhandy.woff') format('woff'), url('../fonts/comesinhandy.ttf') format('truetype');
+}
+
+@import url(//fonts.googleapis.com/css?family=Bitter);
+@import url(//fonts.googleapis.com/css?family=Droid+Serif);
+@import url(//fonts.googleapis.com/css?family=Source+Code+Pro);
+
+@font-face {
+  font-family: 'Indie Flower';
+  font-style: bold;
+  font-weight: 400;
+  font-size: 4px ! important;
+  src: local('Indie Flower'), local('IndieFlower'), url(https://fonts.gstatic.com/s/indieflower/v9/m8JVjfNVeKWVnh3QMuKkFcZVaUuH.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* @import url('https://fonts.googleapis.com/css?family=Crimson+Text'); */
+/* @import url('https://fonts.googleapis.com/css?family=Crimson+Text:700'); */
+/* @import url('https://fonts.googleapis.com/css?family=Vollkorn'); */
+/* @import url('https://fonts.googleapis.com/css?family=Vollkorn:700'); */
+</style>
+
+        <link href="http://markus-beuckelmann.de/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Weblog ATOM Feed">
+
+
+
+        <link href="http://markus-beuckelmann.de/feeds/blog.xml" type="application/atom+xml" rel="alternate" title="Weblog Blog ATOM Feed">
+
+<style type="text/css" id="ctre_styles">
+			#ctre_wnd {
+				position: fixed; bottom: 0; right: 10px; width: 360px; padding: 10px 20px;
+				box-sizing: content-box;
+				font-family: sans-serif; text-align: left;
+				background: #fff; box-shadow: 0px 0px 40px rgba(0,0,0,0.15);
+				z-index: 2147483647;
+				font-size: 12px; color: #666;
+			}
+			#ctre_wnd * {
+				line-height: 1.3; font-size: inherit; color: inherit;
+				font-weight: normal; font-style: normal;
+				cursor: default;
+			}
+			#ctre_wnd a, #ctre_wnd input[type=checkbox] { cursor: pointer; }
+
+			#ctre_wnd .ct_minimize, #ctre_wnd .ct_close {
+				display: block; cursor: pointer;
+				position: absolute; top: 0; right: 0; width: 32px; line-height: 32px;
+				font-size: 14px; text-align: center;
+				transition: color 0.3s, background 0.3s;
+			}
+			#ctre_wnd .ct_minimize { right: 32px; background: #fff; color: #0fb4d4; }
+			#ctre_wnd .ct_minimize:hover { background: #0fb4d4; color: #fff; }
+			#ctre_wnd .ct_minimize i {
+				display: inline-block; cursor: pointer;
+				transform: rotate(45deg); transition: transform 0.5s;
+			}
+			#ctre_wnd .ct_close { color: #f00; background: #fff0f0; }
+			#ctre_wnd .ct_close:hover { color: #fff; background: #f00; }
+			#ctre_wnd .key {
+				display: inline-block;
+				font-family: monospace;
+				background: #f7f7f7; color: #999;
+				padding: 0 2px; margin: 0 2px;
+				border: solid 1px #d5d5d5; border-radius: 3px;
+			}
+			#ctre_wnd .ct_logo { font-size: 15px; font-weight: bold; }
+			#ctre_wnd .ct_logo.small { display: none; }
+			#ctre_wnd .ct_logo svg {
+				fill: #666; vertical-align: -15%;
+				transform: rotate(-240deg); transition: transform 1s;
+			}
+			#ctre_wnd .ct_logo.anim svg { transform: rotate(0deg); }
+
+			#ctre_wnd .version { color: #bbb; }
+			#ctre_wnd .keys { font-size: 11px; overflow: hidden; margin-top: 4px; color: #bbb; }
+			#ctre_wnd .activationKeys { float: left; }
+			#ctre_wnd .transposeKeys { float: right; }
+			#ctre_current_elm {
+				font-family: monospace; background: #f7f7f7; color: #d5d5d5; padding: 2px; margin: 10px 0;
+				max-height: 84px; overflow: hidden;
+			}
+			#ctre_current_elm .pathNode { color: #999; border-bottom: solid 2px rgba(0,0,0,0); }
+			#ctre_current_elm .pathNode.active { border-bottom: solid 2px #555; }
+
+			#ctre_elm_list { display: none; margin-top: 20px; max-height: 90px; overflow: auto; }
+			#ctre_elm_list.hasContent { display: block; }
+			#ctre_elm_list table { border: 0; width: 100%; }
+			#ctre_elm_list td { padding: 0; border: 0; }
+			#ctre_elm_list td:nth-child(2) { text-align: center; }
+			#ctre_elm_list td input { display: inline; }
+			#ctre_elm_list tr { border: 0; }
+			#ctre_elm_list tr.ct_heading td { color: #bbb; }
+			#ctre_elm_list tr:not(.ct_heading) td:nth-child(1) { font-family: monospace; }
+			#ctre_elm_list a.ct_delete { color: #f00; padding: 4px; text-decoration: none; font-size: 14px; }
+			#ctre_elm_list a.ct_delete:hover { color: #fff; background: #f00; }
+			#ctre_wnd .ct_more { margin-top: 20px; color: #bbb; font-size: 10px; text-align: center; }
+			#ctre_wnd .ct_more a { color: #0fb4d4; font-size: inherit; text-decoration: none; transition: color 0.5s; }
+			#ctre_wnd .ct_more a:hover { color: #000; }
+
+			#ctre_wnd.minimized { width: 80px; height: 12px; }
+			#ctre_wnd.minimized > * { display: none; }
+			#ctre_wnd.minimized .ct_minimize,
+			#ctre_wnd.minimized .ct_close { display: block; }
+			#ctre_wnd.minimized .ct_minimize i { display: inline-block; transform: rotate(-135deg); }
+			#ctre_wnd.minimized .ct_logo.small { display: block; margin: -4px 0 0 -10px; }
+			</style><style type="text/css">.MathJax_Hover_Frame {border-radius: .25em; -webkit-border-radius: .25em; -moz-border-radius: .25em; -khtml-border-radius: .25em; box-shadow: 0px 0px 15px #83A; -webkit-box-shadow: 0px 0px 15px #83A; -moz-box-shadow: 0px 0px 15px #83A; -khtml-box-shadow: 0px 0px 15px #83A; border: 1px solid #A6D ! important; display: inline-block; position: absolute}
+.MathJax_Menu_Button .MathJax_Hover_Arrow {position: absolute; cursor: pointer; display: inline-block; border: 2px solid #AAA; border-radius: 4px; -webkit-border-radius: 4px; -moz-border-radius: 4px; -khtml-border-radius: 4px; font-family: 'Courier New',Courier; font-size: 9px; color: #F0F0F0}
+.MathJax_Menu_Button .MathJax_Hover_Arrow span {display: block; background-color: #AAA; border: 1px solid; border-radius: 3px; line-height: 0; padding: 4px}
+.MathJax_Hover_Arrow:hover {color: white!important; border: 2px solid #CCC!important}
+.MathJax_Hover_Arrow:hover span {background-color: #CCC!important}
+</style><style type="text/css">#MathJax_About {position: fixed; left: 50%; width: auto; text-align: center; border: 3px outset; padding: 1em 2em; background-color: #DDDDDD; color: black; cursor: default; font-family: message-box; font-size: 120%; font-style: normal; text-indent: 0; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; z-index: 201; border-radius: 15px; -webkit-border-radius: 15px; -moz-border-radius: 15px; -khtml-border-radius: 15px; box-shadow: 0px 10px 20px #808080; -webkit-box-shadow: 0px 10px 20px #808080; -moz-box-shadow: 0px 10px 20px #808080; -khtml-box-shadow: 0px 10px 20px #808080; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true')}
+#MathJax_About.MathJax_MousePost {outline: none}
+.MathJax_Menu {position: absolute; background-color: white; color: black; width: auto; padding: 2px; border: 1px solid #CCCCCC; margin: 0; cursor: default; font: menu; text-align: left; text-indent: 0; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; z-index: 201; box-shadow: 0px 10px 20px #808080; -webkit-box-shadow: 0px 10px 20px #808080; -moz-box-shadow: 0px 10px 20px #808080; -khtml-box-shadow: 0px 10px 20px #808080; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true')}
+.MathJax_MenuItem {padding: 2px 2em; background: transparent}
+.MathJax_MenuArrow {position: absolute; right: .5em; padding-top: .25em; color: #666666; font-size: .75em}
+.MathJax_MenuActive .MathJax_MenuArrow {color: white}
+.MathJax_MenuArrow.RTL {left: .5em; right: auto}
+.MathJax_MenuCheck {position: absolute; left: .7em}
+.MathJax_MenuCheck.RTL {right: .7em; left: auto}
+.MathJax_MenuRadioCheck {position: absolute; left: 1em}
+.MathJax_MenuRadioCheck.RTL {right: 1em; left: auto}
+.MathJax_MenuLabel {padding: 2px 2em 4px 1.33em; font-style: italic}
+.MathJax_MenuRule {border-top: 1px solid #CCCCCC; margin: 4px 1px 0px}
+.MathJax_MenuDisabled {color: GrayText}
+.MathJax_MenuActive {background-color: Highlight; color: HighlightText}
+.MathJax_MenuDisabled:focus, .MathJax_MenuLabel:focus {background-color: #E8E8E8}
+.MathJax_ContextMenu:focus {outline: none}
+.MathJax_ContextMenu .MathJax_MenuItem:focus {outline: none}
+#MathJax_AboutClose {top: .2em; right: .2em}
+.MathJax_Menu .MathJax_MenuClose {top: -10px; left: -10px}
+.MathJax_MenuClose {position: absolute; cursor: pointer; display: inline-block; border: 2px solid #AAA; border-radius: 18px; -webkit-border-radius: 18px; -moz-border-radius: 18px; -khtml-border-radius: 18px; font-family: 'Courier New',Courier; font-size: 24px; color: #F0F0F0}
+.MathJax_MenuClose span {display: block; background-color: #AAA; border: 1.5px solid; border-radius: 18px; -webkit-border-radius: 18px; -moz-border-radius: 18px; -khtml-border-radius: 18px; line-height: 0; padding: 8px 0 6px}
+.MathJax_MenuClose:hover {color: white!important; border: 2px solid #CCC!important}
+.MathJax_MenuClose:hover span {background-color: #CCC!important}
+.MathJax_MenuClose:hover:focus {outline: none}
+</style><style type="text/css">.MathJax_Preview .MJXf-math {color: inherit!important}
+</style><style type="text/css">.MJX_Assistive_MathML {position: absolute!important; top: 0; left: 0; clip: rect(1px, 1px, 1px, 1px); padding: 1px 0 0 0!important; border: 0!important; height: 1px!important; width: 1px!important; overflow: hidden!important; display: block!important; -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none}
+.MJX_Assistive_MathML.MJX_Assistive_MathML_Block {width: 100%!important}
+</style><style type="text/css">#MathJax_Zoom {position: absolute; background-color: #F0F0F0; overflow: auto; display: block; z-index: 301; padding: .5em; border: 1px solid black; margin: 0; font-weight: normal; font-style: normal; text-align: left; text-indent: 0; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; -webkit-box-sizing: content-box; -moz-box-sizing: content-box; box-sizing: content-box; box-shadow: 5px 5px 15px #AAAAAA; -webkit-box-shadow: 5px 5px 15px #AAAAAA; -moz-box-shadow: 5px 5px 15px #AAAAAA; -khtml-box-shadow: 5px 5px 15px #AAAAAA; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true')}
+#MathJax_ZoomOverlay {position: absolute; left: 0; top: 0; z-index: 300; display: inline-block; width: 100%; height: 100%; border: 0; padding: 0; margin: 0; background-color: white; opacity: 0; filter: alpha(opacity=0)}
+#MathJax_ZoomFrame {position: relative; display: inline-block; height: 0; width: 0}
+#MathJax_ZoomEventTrap {position: absolute; left: 0; top: 0; z-index: 302; display: inline-block; border: 0; padding: 0; margin: 0; background-color: white; opacity: 0; filter: alpha(opacity=0)}
+</style><style type="text/css">.MathJax_Preview {color: #888}
+#MathJax_Message {position: fixed; left: 1em; bottom: 1.5em; background-color: #E6E6E6; border: 1px solid #959595; margin: 0px; padding: 2px 8px; z-index: 102; color: black; font-size: 80%; width: auto; white-space: nowrap}
+#MathJax_MSIE_Frame {position: absolute; top: 0; left: 0; width: 0px; z-index: 101; border: 0px; margin: 0px; padding: 0px}
+.MathJax_Error {color: #CC0000; font-style: italic}
+</style><link rel="stylesheet" href="chrome-extension://alncdjedloppbablonallfbkeiknmkdi/integration/extension/context/content/css/custom-sites.css"><style type="text/css">.MJXp-script {font-size: .8em}
+.MJXp-right {-webkit-transform-origin: right; -moz-transform-origin: right; -ms-transform-origin: right; -o-transform-origin: right; transform-origin: right}
+.MJXp-bold {font-weight: bold}
+.MJXp-italic {font-style: italic}
+.MJXp-scr {font-family: MathJax_Script,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-frak {font-family: MathJax_Fraktur,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-sf {font-family: MathJax_SansSerif,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-cal {font-family: MathJax_Caligraphic,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-mono {font-family: MathJax_Typewriter,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-largeop {font-size: 150%}
+.MJXp-largeop.MJXp-int {vertical-align: -.2em}
+.MJXp-math {display: inline-block; line-height: 1.2; text-indent: 0; font-family: 'Times New Roman',Times,STIXGeneral,serif; white-space: nowrap; border-collapse: collapse}
+.MJXp-display {display: block; text-align: center; margin: 1em 0}
+.MJXp-math span {display: inline-block}
+.MJXp-box {display: block!important; text-align: center}
+.MJXp-box:after {content: " "}
+.MJXp-rule {display: block!important; margin-top: .1em}
+.MJXp-char {display: block!important}
+.MJXp-mo {margin: 0 .15em}
+.MJXp-mfrac {margin: 0 .125em; vertical-align: .25em}
+.MJXp-denom {display: inline-table!important; width: 100%}
+.MJXp-denom > * {display: table-row!important}
+.MJXp-surd {vertical-align: top}
+.MJXp-surd > * {display: block!important}
+.MJXp-script-box > *  {display: table!important; height: 50%}
+.MJXp-script-box > * > * {display: table-cell!important; vertical-align: top}
+.MJXp-script-box > *:last-child > * {vertical-align: bottom}
+.MJXp-script-box > * > * > * {display: block!important}
+.MJXp-mphantom {visibility: hidden}
+.MJXp-munderover {display: inline-table!important}
+.MJXp-over {display: inline-block!important; text-align: center}
+.MJXp-over > * {display: block!important}
+.MJXp-munderover > * {display: table-row!important}
+.MJXp-mtable {vertical-align: .25em; margin: 0 .125em}
+.MJXp-mtable > * {display: inline-table!important; vertical-align: middle}
+.MJXp-mtr {display: table-row!important}
+.MJXp-mtd {display: table-cell!important; text-align: center; padding: .5em 0 0 .5em}
+.MJXp-mtr > .MJXp-mtd:first-child {padding-left: 0}
+.MJXp-mtr:first-child > .MJXp-mtd {padding-top: 0}
+.MJXp-mlabeledtr {display: table-row!important}
+.MJXp-mlabeledtr > .MJXp-mtd:first-child {padding-left: 0}
+.MJXp-mlabeledtr:first-child > .MJXp-mtd {padding-top: 0}
+.MJXp-merror {background-color: #FFFF88; color: #CC0000; border: 1px solid #CC0000; padding: 1px 3px; font-style: normal; font-size: 90%}
+.MJXp-scale0 {-webkit-transform: scaleX(.0); -moz-transform: scaleX(.0); -ms-transform: scaleX(.0); -o-transform: scaleX(.0); transform: scaleX(.0)}
+.MJXp-scale1 {-webkit-transform: scaleX(.1); -moz-transform: scaleX(.1); -ms-transform: scaleX(.1); -o-transform: scaleX(.1); transform: scaleX(.1)}
+.MJXp-scale2 {-webkit-transform: scaleX(.2); -moz-transform: scaleX(.2); -ms-transform: scaleX(.2); -o-transform: scaleX(.2); transform: scaleX(.2)}
+.MJXp-scale3 {-webkit-transform: scaleX(.3); -moz-transform: scaleX(.3); -ms-transform: scaleX(.3); -o-transform: scaleX(.3); transform: scaleX(.3)}
+.MJXp-scale4 {-webkit-transform: scaleX(.4); -moz-transform: scaleX(.4); -ms-transform: scaleX(.4); -o-transform: scaleX(.4); transform: scaleX(.4)}
+.MJXp-scale5 {-webkit-transform: scaleX(.5); -moz-transform: scaleX(.5); -ms-transform: scaleX(.5); -o-transform: scaleX(.5); transform: scaleX(.5)}
+.MJXp-scale6 {-webkit-transform: scaleX(.6); -moz-transform: scaleX(.6); -ms-transform: scaleX(.6); -o-transform: scaleX(.6); transform: scaleX(.6)}
+.MJXp-scale7 {-webkit-transform: scaleX(.7); -moz-transform: scaleX(.7); -ms-transform: scaleX(.7); -o-transform: scaleX(.7); transform: scaleX(.7)}
+.MJXp-scale8 {-webkit-transform: scaleX(.8); -moz-transform: scaleX(.8); -ms-transform: scaleX(.8); -o-transform: scaleX(.8); transform: scaleX(.8)}
+.MJXp-scale9 {-webkit-transform: scaleX(.9); -moz-transform: scaleX(.9); -ms-transform: scaleX(.9); -o-transform: scaleX(.9); transform: scaleX(.9)}
+.MathJax_PHTML .noError {vertical-align: ; font-size: 90%; text-align: left; color: black; padding: 1px 3px; border: 1px solid}
+</style><style type="text/css">.MathJax_Display {text-align: center; margin: 1em 0em; position: relative; display: block!important; text-indent: 0; max-width: none; max-height: none; min-width: 0; min-height: 0; width: 100%}
+.MathJax .merror {background-color: #FFFF88; color: #CC0000; border: 1px solid #CC0000; padding: 1px 3px; font-style: normal; font-size: 90%}
+.MathJax .MJX-monospace {font-family: monospace}
+.MathJax .MJX-sans-serif {font-family: sans-serif}
+#MathJax_Tooltip {background-color: InfoBackground; color: InfoText; border: 1px solid black; box-shadow: 2px 2px 5px #AAAAAA; -webkit-box-shadow: 2px 2px 5px #AAAAAA; -moz-box-shadow: 2px 2px 5px #AAAAAA; -khtml-box-shadow: 2px 2px 5px #AAAAAA; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true'); padding: 3px 4px; z-index: 401; position: absolute; left: 0; top: 0; width: auto; height: auto; display: none}
+.MathJax {display: inline; font-style: normal; font-weight: normal; line-height: normal; font-size: 100%; font-size-adjust: none; text-indent: 0; text-align: left; text-transform: none; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; direction: ltr; max-width: none; max-height: none; min-width: 0; min-height: 0; border: 0; padding: 0; margin: 0}
+.MathJax:focus, body :focus .MathJax {display: inline-table}
+.MathJax.MathJax_FullWidth {text-align: center; display: table-cell!important; width: 10000em!important}
+.MathJax img, .MathJax nobr, .MathJax a {border: 0; padding: 0; margin: 0; max-width: none; max-height: none; min-width: 0; min-height: 0; vertical-align: 0; line-height: normal; text-decoration: none}
+img.MathJax_strut {border: 0!important; padding: 0!important; margin: 0!important; vertical-align: 0!important}
+.MathJax span {display: inline; position: static; border: 0; padding: 0; margin: 0; vertical-align: 0; line-height: normal; text-decoration: none}
+.MathJax nobr {white-space: nowrap!important}
+.MathJax img {display: inline!important; float: none!important}
+.MathJax * {transition: none; -webkit-transition: none; -moz-transition: none; -ms-transition: none; -o-transition: none}
+.MathJax_Processing {visibility: hidden; position: fixed; width: 0; height: 0; overflow: hidden}
+.MathJax_Processed {display: none!important}
+.MathJax_ExBox {display: block!important; overflow: hidden; width: 1px; height: 60ex; min-height: 0; max-height: none}
+.MathJax .MathJax_EmBox {display: block!important; overflow: hidden; width: 1px; height: 60em; min-height: 0; max-height: none}
+.MathJax_LineBox {display: table!important}
+.MathJax_LineBox span {display: table-cell!important; width: 10000em!important; min-width: 0; max-width: none; padding: 0; border: 0; margin: 0}
+.MathJax .MathJax_HitBox {cursor: text; background: white; opacity: 0; filter: alpha(opacity=0)}
+.MathJax .MathJax_HitBox * {filter: none; opacity: 1; background: transparent}
+#MathJax_Tooltip * {filter: none; opacity: 1; background: transparent}
+@font-face {font-family: MathJax_Main; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Main-Regular.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Main-Regular.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Main-bold; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Main-Bold.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Main-Bold.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Main-italic; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Main-Italic.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Main-Italic.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Math-italic; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Math-Italic.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Math-Italic.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Caligraphic; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Caligraphic-Regular.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Caligraphic-Regular.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Size1; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Size1-Regular.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Size1-Regular.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Size2; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Size2-Regular.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Size2-Regular.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Size3; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Size3-Regular.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Size3-Regular.otf?V=2.7.1') format('opentype')}
+@font-face {font-family: MathJax_Size4; src: url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/woff/MathJax_Size4-Regular.woff?V=2.7.1') format('woff'), url('https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/fonts/HTML-CSS/TeX/otf/MathJax_Size4-Regular.otf?V=2.7.1') format('opentype')}
+.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn {color: inherit ! important}
+.MathJax .noError {vertical-align: ; font-size: 90%; text-align: left; color: black; padding: 1px 3px; border: 1px solid}
+</style></head>
+<body data-gr-c-s-loaded="true"><div style="visibility: hidden; overflow: hidden; position: absolute; top: 0px; height: 1px; width: auto; padding: 0px; border: 0px; margin: 0px; text-align: left; text-indent: 0px; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal;"><div id="MathJax_Hidden"></div></div><div id="MathJax_Message" style="display: none;"></div>
+
+<!-- Header / Navbar -->
+<div id="header" class="navbar navbar-default navbar-static-top" role="navigation">
+  <div class="container-fluid">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+      <a href="http://markus-beuckelmann.de/" class="navbar-brand">
+      </a>
+    </div>
+    <div class="collapse navbar-collapse navbar-ex1-collapse">
+      <ul class="nav navbar-nav">
+            <li><a href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#" class="inactive">Home</a></li>
+            <li><a href="http://markus-beuckelmann.de/blog.html">Weblog</a></li>
+            <li><a href="http://markus-beuckelmann.de/pages/projects.html">Projects</a></li>
+            <li><a href="http://markus-beuckelmann.de/links.html">Links</a></li>
+            <li><a href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#" class="inactive">About</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+      </ul>
+    </div>
+    <!-- /.navbar-collapse -->
+  </div>
+</div> <!-- /.navbar -->
+<!-- Banner -->
+<!-- End Banner -->
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-9 main shadow">
+    <section id="content">
+        <article>
+            <header class="page-header">
+                <h1>
+                    <a href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html" rel="bookmark" title="Permalink to Boosting numpy: Why BLAS Matters">
+                        <p>Boosting <code>numpy</code>: Why <span class="caps">BLAS</span>&nbsp;Matters</p>
+                    </a>
+                </h1>
+            </header>
+            <div class="entry-content">
+                <div class="panel" id="article-info">
+                    <div class="panel-body">
+<footer class="post-info">
+    <!-- <span class="label label-default">Date</span> -->
+    <span class="published">
+        <i class="fa fa-calendar"></i><time datetime="2017-04-23T18:32:07+02:00"> April 23, 2017</time>
+    </span>
+
+
+
+
+
+<!-- <span class="label label-default">Tags</span> -->
+<i class="fa fa-hashtag"></i>
+	<a href="http://markus-beuckelmann.de/tag/python.html">python</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/numpy.html">numpy</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/scipy.html">scipy</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/blas.html">blas</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/lapack.html">lapack</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/openblas.html">openblas</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/atlas.html">atlas</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/intel-mkl.html">intel mkl</a>
+        –
+	<a href="http://markus-beuckelmann.de/tag/virtualenv.html">virtualenv</a>
+    
+</footer><!-- /.post-info -->                    </div>
+                </div>
+                <p id="i-recently-noticed-that-the-same-code-on-the-same-machine-had-va"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#i-recently-noticed-that-the-same-code-on-the-same-machine-had-va" aria-label="Anchor link for: i recently noticed that the same code on the same machine had va" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>I recently noticed that the same code on the same machine had vastly different run times in different <a href="http://virtualenv.pypa.io/en/stable/">virtual environments</a>. This looked a little suspicious to me. Digging deeper, I realized that the reason for this was that <code>numpy</code> was linked against different <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms"><span class="caps">BLAS</span></a> libraries in different virtual environments, which had tremendous effects on the performance. However, taking a closer look on what implementation is actually used under the hood on your machine, and possibly compiling an implementation that is tailored to your very system, can yield significant speed–ups  <em>almost for free</em>, without changing a single line of your&nbsp;code.</p>
+<h1 id="blas-lapack"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#blas-lapack" aria-label="Anchor link for: blas lapack" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><span class="caps">BLAS</span> <span class="amp">&amp;</span> <span class="caps">LAPACK</span></h1>
+<p id="blas-is-the-low–level-part-of-your-system-that-is-responsible-fo"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#blas-is-the-low%E2%80%93level-part-of-your-system-that-is-responsible-fo" aria-label="Anchor link for: blas is the low–level part of your system that is responsible fo" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><em><span class="caps">BLAS</span></em> is the low–level part of your system that is responsible for efficiently performing <a href="http://en.wikipedia.org/wiki/Numerical_linear_algebra">numerical linear algebra</a>, i.e. all the heavy number crunching. More&nbsp;precisely:</p>
+<blockquote>
+<p>Basic Linear Algebra Subprograms (<span class="caps">BLAS</span>) is a specification that prescribes a set of low-level routines for performing common linear algebra operations such as vector addition, scalar multiplication, dot products, linear combinations, and matrix multiplication. They are the de facto standard low-level routines for linear algebra libraries; the routines have bindings for both C and Fortran. Although the <span class="caps">BLAS</span> specification is general, <span class="caps">BLAS</span> implementations are often optimized for speed on a particular machine, so using them can bring substantial performance&nbsp;benefits.</p>
+</blockquote>
+<p id="together-with-something-like-lapack-it-is-the-cornerstone-of-tod"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#together-with-something-like-lapack-it-is-the-cornerstone-of-tod" aria-label="Anchor link for: together with something like lapack it is the cornerstone of tod" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Together with something like <span class="caps">LAPACK</span>, it is the cornerstone of today’s scientific software&nbsp;packages.</p>
+<blockquote>
+<p><span class="caps">LAPACK</span> (Linear Algebra Package) is a standard software library for numerical linear algebra. It provides routines for solving systems of linear equations and linear least squares, eigenvalue problems, and singular value decomposition. It also includes routines to implement the associated matrix factorizations such as <span class="caps">LU</span>, <span class="caps">QR</span>, Cholesky and Schur&nbsp;decomposition.</p>
+</blockquote>
+<p id="now-as-mentioned-above-blas-lapack-are-merely-defining-a-standar"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#now-as-mentioned-above-blas-lapack-are-merely-defining-a-standar" aria-label="Anchor link for: now as mentioned above blas lapack are merely defining a standar" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Now, as mentioned above, <em><span class="caps">BLAS</span></em> <span class="amp">&amp;</span> <em><span class="caps">LAPACK</span></em> are merely defining a standard interface, but what really matters is the implementation you choose. There are many different implementations under different licenses, which all have their advantages and disadvantages. It can sometimes be difficult to choose the most beneficial implementation for your&nbsp;machine.</p>
+<h2 id="different implementations"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#different%C2%A0implementations" aria-label="Anchor link for: different implementations" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Different&nbsp;Implementations</h2>
+<h3 id="default-blas-lapack-1"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#default-blas-lapack-1" aria-label="Anchor link for: default blas lapack 1" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Default <span class="caps">BLAS</span> <span class="amp">&amp;</span> <span class="caps">LAPACK</span></h3>
+<p id="by-default-you-will-most-likely-only-have-the-standard-blas-lapa"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#by-default-you-will-most-likely-only-have-the-standard-blas-lapa" aria-label="Anchor link for: by default you will most likely only have the standard blas lapa" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>By default, you will most likely only have the standard <em><span class="caps">BLAS</span></em> <span class="amp">&amp;</span> <em><span class="caps">LAPACK</span></em> implementation on your system (e.g. Arch Linux packages <code>blas</code>/<code>cblas</code> and <code>lapack</code>). While this situation is certainly sufficient if you don’t care about performance and works out of the box, is has considerable shortcomings compared to more recent implementation, e.g. not fully supporting multi–core computations. We will see how its overall performance compares to other implementations&nbsp;below.</p>
+<h3 id="automatically-tuned-linear-algebra-software-atlas"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#automatically-tuned-linear-algebra-software-atlas" aria-label="Anchor link for: automatically tuned linear algebra software atlas" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Automatically Tuned Linear Algebra Software (<span class="caps">ATLAS</span>)</h3>
+<p id="the-main-purpose-of-the-atlas-project-is-to-provide-a-portable-h"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#the-main-purpose-of-the-atlas-project-is-to-provide-a-portable-h" aria-label="Anchor link for: the main purpose of the atlas project is to provide a portable h" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>The main purpose of the <a href="http://math-atlas.sourceforge.net/"><span class="caps">ATLAS</span> project</a> is to provide a portable high–performance implementation for many different platforms. To achieve this, they use a complex mechanism to automatically determine the optimal parameters for the respective hardware during compilation. <span class="caps">ATLAS</span> has become quite popular in recent years, since it uses the <a href="http://opensource.org/licenses/bsd-license.html"><span class="caps">BSD</span> license</a> and is platform independent. When compiled properly, it probably provides a reasonably good <em><span class="caps">BLAS</span></em> library for most performance–critical applications on most&nbsp;platforms.</p>
+<p id="on-arch-linux-you-can-use-the-atlas-lapack-package-from-the-repo"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#on-arch-linux-you-can-use-the-atlas-lapack-package-from-the-repo" aria-label="Anchor link for: on arch linux you can use the atlas lapack package from the repo" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>On Arch Linux you can use the <code>atlas-lapack</code> package from the repository, which will download and compile <span class="caps">ATLAS</span> on your machine. However, before starting the compilation, make sure to disable <em><span class="caps">CPU</span> throttling</em> in your <span class="caps">OS</span>, since this will mess up the timing when benchmarking <span class="caps">ATLAS</span> during compilation. To do this, I had to run <code>sudo cpupower frequency-set -g performance</code> on my machine. Additionally, I had to disable <code>intel_pstate</code> which actually required me to reboot my system. After this, the compilation process ran smooth and <span class="caps">ATLAS</span> determined the optimal settings for my machine, which ended up taking a couple of&nbsp;hours.</p>
+<h3 id="intel-math-kernel-library-intel-mkl"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#intel-math-kernel-library-intel-mkl" aria-label="Anchor link for: intel math kernel library intel mkl" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Intel Math Kernel Library (Intel <span class="caps">MKL</span>)</h3>
+<p id="the-intel-math-kernel-library-intel-mkl-is-a-proprietary-library"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#the-intel-math-kernel-library-intel-mkl-is-a-proprietary-library" aria-label="Anchor link for: the intel math kernel library intel mkl is a proprietary library" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>The <a href="http://software.intel.com/en-us/intel-mkl">Intel Math Kernel Library</a> (Intel <span class="caps">MKL</span>) is a proprietary library that is hand–optimized specifically for Intel processors. As of February 2017, it is free of charge for some use cases. You can read more about the <em>Community Licensing</em> <a href="https://software.intel.com/en-us/articles/free-mkl">here</a>.</p>
+<p id="if-you-are-using-arch-linux-you-can-obtain-it-by-installing-the"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#if-you-are-using-arch-linux-you-can-obtain-it-by-installing-the" aria-label="Anchor link for: if you are using arch linux you can obtain it by installing the" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>If you are using Arch Linux you can obtain it by installing the <code>intel-mkl</code> package, otherwise search your repository or download it directly from Intel’s developer page. The compilation process is straightforward, just follow the instructions&nbsp;provided.</p>
+<h3 id="openblas-1"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#openblas-1" aria-label="Anchor link for: openblas 1" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>OpenBLAS</h3>
+<p id="openblas-is-another-popular-open–source-implementation-that-is-b"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#openblas-is-another-popular-open%E2%80%93source-implementation-that-is-b" aria-label="Anchor link for: openblas is another popular open–source implementation that is b" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://github.com/xianyi/OpenBLAS">OpenBLAS</a> is another popular open–source implementation that is based on a fork of <a href="https://www.tacc.utexas.edu/research-development/tacc-software/gotoblas2">GotoBLAS2</a>. They claim in their <a href="http://github.com/xianyi/OpenBLAS/wiki/faq"><span class="caps">FAQ</span></a> that OpenBLAS achieves a performance comparable to Intel <span class="caps">MKL</span> for Intel’s Sandy Bridge CPUs. Furthermore, OpenBLAS is well–known for its multi-threading features and apparently scales very nicely with the number of&nbsp;cores.</p>
+<p id="obtain-a-copy-from-openblas-net-or-github-and-follow-the-install"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#obtain-a-copy-from-openblas-net-or-github-and-follow-the-install" aria-label="Anchor link for: obtain a copy from openblas net or github and follow the install" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Obtain a copy from <a href="http://www.openblas.net/">openblas.net</a> or GitHub and follow the <a href="http://github.com/xianyi/OpenBLAS/wiki/Installation-Guide">installation instructions</a>. This will walk you through the compilation and installation&nbsp;process.</p>
+<h1 id="time-for benchmarks"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#time-for%C2%A0benchmarks" aria-label="Anchor link for: time for benchmarks" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Time for&nbsp;Benchmarks</h1>
+<p id="a-reliable-comparison-can-only-be-based-on-hard-numbers-for-this"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#a-reliable-comparison-can-only-be-based-on-hard-numbers-for-this" aria-label="Anchor link for: a reliable comparison can only be based on hard numbers for this" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>A reliable comparison can only be based on hard numbers. For this purpose, I drafted a small Python script based on an existing script that I found in <a href="http://stackoverflow.com/questions/11443302/compiling-numpy-with-openblas-integration">this</a> Stackoverflow thread. Here it&nbsp;is:</p>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># -*- coding: UTF-8 -*-</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+
+<span class="c1"># Let's take the randomness out of random numbers (for reproducibility)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">size</span> <span class="o">=</span> <span class="mi">4096</span>
+<span class="n">A</span><span class="p">,</span> <span class="n">B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">size</span><span class="p">,</span> <span class="n">size</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">size</span><span class="p">,</span> <span class="n">size</span><span class="p">))</span>
+<span class="n">C</span><span class="p">,</span> <span class="n">D</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">size</span> <span class="o">*</span> <span class="mi">128</span><span class="p">,)),</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="n">size</span> <span class="o">*</span> <span class="mi">128</span><span class="p">,))</span>
+<span class="n">E</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)))</span>
+<span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)))</span>
+<span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">F</span><span class="p">,</span> <span class="n">F</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+<span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)))</span>
+
+<span class="c1"># Matrix multiplication</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span>
+<span class="n">delta</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">'Dotted two </span><span class="si">%d</span><span class="s1">x</span><span class="si">%d</span><span class="s1"> matrices in </span><span class="si">%0.2f</span><span class="s1"> s.'</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">delta</span> <span class="o">/</span> <span class="n">N</span><span class="p">))</span>
+<span class="k">del</span> <span class="n">A</span><span class="p">,</span> <span class="n">B</span>
+
+<span class="c1"># Vector multiplication</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">5000</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">C</span><span class="p">,</span> <span class="n">D</span><span class="p">)</span>
+<span class="n">delta</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span>
+<span class="k">print</span><span class="p">(</span><span class="s1">'Dotted two vectors of length </span><span class="si">%d</span><span class="s1"> in </span><span class="si">%0.2f</span><span class="s1"> ms.'</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span> <span class="o">*</span> <span class="mi">128</span><span class="p">,</span> <span class="mf">1e3</span> <span class="o">*</span> <span class="n">delta</span> <span class="o">/</span> <span class="n">N</span><span class="p">))</span>
+<span class="k">del</span> <span class="n">C</span><span class="p">,</span> <span class="n">D</span>
+
+<span class="c1"># Singular Value Decomposition (SVD)</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">svd</span><span class="p">(</span><span class="n">E</span><span class="p">,</span> <span class="n">full_matrices</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)</span>
+<span class="n">delta</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">"SVD of a </span><span class="si">%d</span><span class="s2">x</span><span class="si">%d</span><span class="s2"> matrix in </span><span class="si">%0.2f</span><span class="s2"> s."</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">size</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span> <span class="n">delta</span> <span class="o">/</span> <span class="n">N</span><span class="p">))</span>
+<span class="k">del</span> <span class="n">E</span>
+
+<span class="c1"># Cholesky Decomposition</span>
+<span class="n">N</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">cholesky</span><span class="p">(</span><span class="n">F</span><span class="p">)</span>
+<span class="n">delta</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">"Cholesky decomposition of a </span><span class="si">%d</span><span class="s2">x</span><span class="si">%d</span><span class="s2"> matrix in </span><span class="si">%0.2f</span><span class="s2"> s."</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span> <span class="o">/</span> <span class="n">N</span><span class="p">))</span>
+
+<span class="c1"># Eigendecomposition</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eig</span><span class="p">(</span><span class="n">G</span><span class="p">)</span>
+<span class="n">delta</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t</span>
+<span class="k">print</span><span class="p">(</span><span class="s2">"Eigendecomposition of a </span><span class="si">%d</span><span class="s2">x</span><span class="si">%d</span><span class="s2"> matrix in </span><span class="si">%0.2f</span><span class="s2"> s."</span> <span class="o">%</span> <span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">size</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span> <span class="o">/</span> <span class="n">N</span><span class="p">))</span>
+</pre></div>
+
+
+<p id="this-performs-some-matrix-multiplication-vector–vector-multiplic"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#this-performs-some-matrix-multiplication-vector%E2%80%93vector-multiplic" aria-label="Anchor link for: this performs some matrix multiplication vector–vector multiplic" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>This performs some matrix multiplication, vector–vector multiplication, <a href="http://en.wikipedia.org/wiki/Singular_value_decomposition">singular value decomposition</a> (<span class="caps">SVD</span>), <a href="http://en.wikipedia.org/wiki/Cholesky_decomposition">Cholesky factorization</a> and <a href="http://en.wikipedia.org/wiki/Eigenvalues_and_eigenvectors">Eigendecomposition</a>, and averages the timing results (which are of course arbitrary) over multiple runs. This is how you can find out which <em><span class="caps">BLAS</span></em> implementation <code>numpy</code> is using under the&nbsp;hood:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="n">np</span><span class="o">.</span><span class="n">__config__</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+
+<p id="you-can-run-the-script-successively-using-different-blas-impleme"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#you-can-run-the-script-successively-using-different-blas-impleme" aria-label="Anchor link for: you can run the script successively using different blas impleme" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>You can run the script successively using different <span class="caps">BLAS</span> implementations, either in different virtual environments or using a different <em><span class="caps">BLAS</span></em> configuration in <code>site.cfg</code>. For a fair comparison, you should set your <span class="caps">CPU</span> to a constant clock frequency and not perform any other heavy lifting while the scripts are running, especially when they make use of multiple cores on your&nbsp;machine.</p>
+<p id="let’s-find-out-how-the-different-implementation-compare-in-terms"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#let%E2%80%99s-find-out-how-the-different-implementation-compare-in-terms" aria-label="Anchor link for: let’s find out how the different implementation compare in terms" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Let’s find out how the different implementation compare in terms of performance on my&nbsp;laptop!</p>
+<h2 id="default-blas-lapack"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#default-blas-lapack" aria-label="Anchor link for: default blas lapack" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Default <span class="caps">BLAS</span> <span class="amp">&amp;</span> <span class="caps">LAPACK</span></h2>
+<div class="highlight"><pre><span></span>Dotted two 4096x4096 matrices in 64.22 s.
+Dotted two vectors of length 524288 in 0.80 ms.
+SVD of a 2048x1024 matrix in 10.31 s.
+Cholesky decomposition of a 2048x2048 matrix in 6.74 s.
+Eigendecomposition of a 2048x2048 matrix in 53.77 s.
+</pre></div>
+
+
+<h2 id="atlas"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#atlas" aria-label="Anchor link for: atlas" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><span class="caps">ATLAS</span></h2>
+<!-- ATLAS -->
+
+<div class="highlight"><pre><span></span>Dotted two 4096x4096 matrices in 3.46 s.
+Dotted two vectors of length 524288 in 0.73 ms.
+SVD of a 2048x1024 matrix in 2.02 s.
+Cholesky decomposition of a 2048x2048 matrix in 0.51 s.
+Eigendecomposition of a 2048x2048 matrix in 29.90 s.
+</pre></div>
+
+
+<h2 id="intel-mkl"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#intel-mkl" aria-label="Anchor link for: intel mkl" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Intel <span class="caps">MKL</span></h2>
+<div class="highlight"><pre><span></span>Dotted two 4096x4096 matrices in 2.44 s.
+Dotted two vectors of length 524288 in 0.75 ms.
+SVD of a 2048x1024 matrix in 1.34 s.
+Cholesky decomposition of a 2048x2048 matrix in 0.40 s.
+Eigendecomposition of a 2048x2048 matrix in 10.07 s.
+</pre></div>
+
+
+<!-- The fact that MKL uses multiple cores accounts for a speed–up factor of 2 on my system -->
+
+<!--&#8212; Note that MKL is now *free for all*, given some conditions.
+<!&#8212; For ATLAS: This could in theory probably perform better. I would have to recompile it on my own machine to find out how good it can become. But the stock version is not performing very good. &#8212;-->
+
+<!-- A more in–depth analysis should also compare the performance for sparse matrices. -->
+
+<!-- site.cfg -->
+
+<h2 id="openblas"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#openblas" aria-label="Anchor link for: openblas" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>OpenBLAS</h2>
+<div class="highlight"><pre><span></span>Dotted two 4096x4096 matrices in 3.97 s.
+Dotted two vectors of length 524288 in 0.74 ms.
+SVD of a 2048x1024 matrix in 1.96 s.
+Cholesky decomposition of a 2048x2048 matrix in 0.46 s.
+Eigendecomposition of a 2048x2048 matrix in 32.95 s.
+</pre></div>
+
+
+<h1 id="today’s lesson"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#today%E2%80%99s%C2%A0lesson" aria-label="Anchor link for: today’s lesson" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Today’s&nbsp;Lesson</h1>
+<p id="we-can-see-that-there-are-tremendous-differences-in-run-time-uns"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#we-can-see-that-there-are-tremendous-differences-in-run-time-uns" aria-label="Anchor link for: we can see that there are tremendous differences in run time uns" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>We can see that there are <em>tremendous</em> differences in run time. Unsurprisingly, the default implementation seems to be slowest in most regards (by far!). Intel’s Math Kernel Library (Intel <span class="caps">MKL</span>) performs best, which is again not truly surprising, given the fact that I use an <em>Intel i5</em> processor on my machine. <span class="caps">ATLAS</span> and OpenBLAS are both within the same ballpark and doing reasonably well. All implementations, except for the default implementation, make use of all cores on my machine, which can explain some but not all of the performance gains. You can control the number of threads used by setting the respective <em>environment variables</em> (e.g. <code>OMP_NUM_THREADS</code>).</p>
+<p id="the-difference-between-slowest-and-fastest-is-quite-remarkable-i"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#the-difference-between-slowest-and-fastest-is-quite-remarkable-i" aria-label="Anchor link for: the difference between slowest and fastest is quite remarkable i" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>The difference between slowest and fastest is quite remarkable. <em>If</em> the low–level math computation is actually your bottleneck, <em>and</em> you are <em>not</em> already making use of all cores on your machine, you can expect speed–ups up to a factor of <span class="math"><span class="MathJax_Preview" style="color: inherit; display: none;"></span><span class="MathJax" id="MathJax-Element-1-Frame" tabindex="0" style="position: relative;" data-mathml="&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;mn&gt;25&lt;/mn&gt;&lt;/math&gt;" role="presentation"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-1" style="width: 1.158em; display: inline-block;"><span style="display: inline-block; position: relative; width: 1.042em; height: 0px; font-size: 111%;"><span style="position: absolute; clip: rect(1.331em, 1000.99em, 2.371em, -999.997em); top: -2.192em; left: 0em;"><span class="mrow" id="MathJax-Span-2"><span class="mn" id="MathJax-Span-3" style="font-family: MathJax_Main;">25</span></span><span style="display: inline-block; width: 0px; height: 2.197em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.061em; border-left: 0px solid; width: 0px; height: 0.901em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><mn>25</mn></math></span></span><script type="math/tex" id="MathJax-Element-1">25</script></span> (in my case) or something within that order of magnitude. This is roughly equivalent of getting the run time down from a full nightly run, i.e. from leaving the office in the afternoon to the first cup of coffee in the morning, to only half an&nbsp;hour.</p>
+<h2 id="further thoughts"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#further%C2%A0thoughts" aria-label="Anchor link for: further thoughts" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Further&nbsp;Thoughts</h2>
+<ul>
+<li id="always-keep-an-eye-on-what-blas-library-numpy-is-actually-using"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#always-keep-an-eye-on-what-blas-library-numpy-is-actually-using" aria-label="Anchor link for: always keep an eye on what blas library numpy is actually using" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Always keep an eye on what <em><span class="caps">BLAS</span></em> library <code>numpy</code> is actually using on your machine. Use <code>np.__config__.show()</code> to find out about&nbsp;this.</li>
+<li id="by-the-way-it-also-matters-which-blas-implementation-scipy-is-li"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#by-the-way-it-also-matters-which-blas-implementation-scipy-is-li" aria-label="Anchor link for: by the way it also matters which blas implementation scipy is li" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>By the way, it also matters which <em><span class="caps">BLAS</span></em> implementation <code>scipy</code> is linked&nbsp;against.</li>
+<li id="if-you-care-about-performance-whatever-blas-library-you-decide-t"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#if-you-care-about-performance-whatever-blas-library-you-decide-t" aria-label="Anchor link for: if you care about performance whatever blas library you decide t" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>If you care about performance, whatever <em><span class="caps">BLAS</span></em> library you decide to use in the end should be tailored to your machine’s very hardware. It you don’t mind the trouble, go ahead and compile it&nbsp;yourself.</li>
+<li id="as-a-rule-of-thumb-when-your-machine-has-a-reasonably-modern-int"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#as-a-rule-of-thumb-when-your-machine-has-a-reasonably-modern-int" aria-label="Anchor link for: as a rule of thumb when your machine has a reasonably modern int" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>As a rule of thumb, when your machine has a reasonably modern Intel processor, then you’re probably best off using Intel <span class="caps">MKL</span>.</li>
+<li id="it-seems-that-once-again-the-anaconda-distribution-saves-your-as"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#it-seems-that-once-again-the-anaconda-distribution-saves-your-as" aria-label="Anchor link for: it seems that once again the anaconda distribution saves your as" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>It seems that, once again, the <a href="http://www.continuum.io/Anaconda-Overview">Anaconda</a> distribution saves your ass by providing sane defaults, i.e. shipping with Intel <span class="caps">MKL</span> built-in in my case. If you’ve obtained <code>numpy</code> through <code>conda</code> you are probably doing&nbsp;fine.</li>
+<li id="there-are-more-libraries-such-as-eigen-or-boost-that-should-be-w"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#there-are-more-libraries-such-as-eigen-or-boost-that-should-be-w" aria-label="Anchor link for: there are more libraries such as eigen or boost that should be w" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>There are more libraries such as <a href="https://eigen.tuxfamily.org/dox-devel/TopicUsingBlasLapack.html">Eigen</a> or <a href="http://www.boost.org/">Boost</a> that should be worth to look at. If you have an <span class="caps">AMD</span> processor, take a look at <a href="http://developer.amd.com/tools-and-sdks/archive/compute/amd-core-math-library-acml/acml-downloads-resources/"><span class="caps">ACML</span></a>.</li>
+</ul>
+<h1 id="ressources"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#ressources" aria-label="Anchor link for: ressources" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a>Ressources</h1>
+<ul>
+<li id="building-numpy-and-scipy-with-intel-mkl"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#building-numpy-and-scipy-with-intel-mkl" aria-label="Anchor link for: building numpy and scipy with intel mkl" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://www.elliottforney.com/blog/npspmkl/">Building NumPy and SciPy with Intel <span class="caps">MKL</span></a></li>
+<li id="no-cost-options-for-intel®-parallel-studio-xe-support-yourself- "><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#no-cost-options-for-intel%C2%AE-parallel-studio-xe-support-yourself-%C2%A0" aria-label="Anchor link for: no cost options for intel® parallel studio xe support yourself  " data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://software.intel.com/en-us/articles/free-ipsxe-tools-and-libraries">No Cost Options for Intel® Parallel Studio <span class="caps">XE</span>, Support Yourself,&nbsp;Royalty-Free</a></li>
+<li id="anaconda-2-5-release-now-with-mkl optimizations"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#anaconda-2-5-release-now-with-mkl%C2%A0optimizations" aria-label="Anchor link for: anaconda 2 5 release now with mkl optimizations" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://www.continuum.io/blog/developer-blog/anaconda-25-release-now-mkl-optimizations">Anaconda 2.5 Release - Now with <span class="caps">MKL</span>&nbsp;Optimizations</a></li>
+<li id="anaconda-documentation-mkl optimizations"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#anaconda-documentation-mkl%C2%A0optimizations" aria-label="Anchor link for: anaconda documentation mkl optimizations" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://docs.continuum.io/mkl-optimizations/">Anaconda Documentation: <span class="caps">MKL</span>&nbsp;Optimizations</a></li>
+<li id="performance-comparison-of-openblas-and-intel®-math-kernel-librar"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#performance-comparison-of-openblas-and-intel%C2%AE-math-kernel-librar" aria-label="Anchor link for: performance comparison of openblas and intel® math kernel librar" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://software.intel.com/en-us/articles/performance-comparison-of-openblas-and-intel-math-kernel-library-in-r">Performance Comparison of OpenBLAS and Intel® Math Kernel Library in&nbsp;R</a></li>
+<li id="benchmark-openblas-intel-mkl-vs-atlas"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#benchmark-openblas-intel-mkl-vs-atlas" aria-label="Anchor link for: benchmark openblas intel mkl vs atlas" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://github.com/tmolteno/necpp/issues/18">Benchmark OpenBLAS, Intel <span class="caps">MKL</span> vs <span class="caps">ATLAS</span></a></li>
+<li id="numpy-scipy-with-intel®-mkl-and-intel® compilers"><a class="anchorjs-link " href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#numpy-scipy-with-intel%C2%AE-mkl-and-intel%C2%AE%C2%A0compilers" aria-label="Anchor link for: numpy scipy with intel® mkl and intel® compilers" data-anchorjs-icon="" style="font-family: anchorjs-icons; font-style: normal; font-variant: normal; font-weight: normal; line-height: inherit; position: absolute; margin-left: -1em; padding-right: 0.5em;"></a><a href="http://software.intel.com/en-us/articles/numpy-scipy-with-mkl/">Numpy/Scipy with Intel® <span class="caps">MKL</span> and Intel®&nbsp;Compilers</a></li>
+</ul>
+<script type="text/javascript" src="./Boosting numpy_ Why BLAS Matters - Weblog_files/jXHR.js.download"></script><script type="text/javascript" async="" src="./Boosting numpy_ Why BLAS Matters - Weblog_files/ga.js.download"></script><script type="text/javascript">if (!document.getElementById('mathjaxscript_pelican_#%@#$@#')) {
+    var align = "center",
+        indent = "0em",
+        linebreak = "false";
+
+    if (false) {
+        align = (screen.width < 768) ? "left" : align;
+        indent = (screen.width < 768) ? "0em" : indent;
+        linebreak = (screen.width < 768) ? 'true' : linebreak;
+    }
+
+    var mathjaxscript = document.createElement('script');
+    var location_protocol = (false) ? 'https' : document.location.protocol;
+    if (location_protocol !== 'http' && location_protocol !== 'https') location_protocol = 'https:';
+    mathjaxscript.id = 'mathjaxscript_pelican_#%@#$@#';
+    mathjaxscript.type = 'text/javascript';
+    mathjaxscript.src = location_protocol + '//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML';
+    mathjaxscript[(window.opera ? "innerHTML" : "text")] =
+        "MathJax.Hub.Config({" +
+        "    config: ['MMLorHTML.js']," +
+        "    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } }," +
+        "    jax: ['input/TeX','input/MathML','output/HTML-CSS']," +
+        "    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js']," +
+        "    displayAlign: '"+ align +"'," +
+        "    displayIndent: '"+ indent +"'," +
+        "    showMathMenu: true," +
+        "    messageStyle: 'normal'," +
+        "    tex2jax: { " +
+        "        inlineMath: [ ['\\\\(','\\\\)'] ], " +
+        "        displayMath: [ ['$$','$$'] ]," +
+        "        processEscapes: true," +
+        "        preview: 'LaTex rendering...'," +
+        "    }, " +
+        "    'HTML-CSS': { " +
+        "        styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} }," +
+        "        linebreaks: { automatic: "+ linebreak +", width: '90% container' }," +
+        "    }, " +
+        "}); " +
+        "if ('default' !== 'default') {" +
+            "MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+            "MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {" +
+                "var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;" +
+                "VARIANT['normal'].fonts.unshift('MathJax_default');" +
+                "VARIANT['bold'].fonts.unshift('MathJax_default-bold');" +
+                "VARIANT['italic'].fonts.unshift('MathJax_default-italic');" +
+                "VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');" +
+            "});" +
+        "}";
+    (document.body || document.getElementsByTagName('head')[0]).appendChild(mathjaxscript);
+}
+</script>
+            </div>
+            <!-- /.entry-content -->
+        </article>
+    </section>
+
+        </div>
+        <div class="col-sm-3" id="sidebar">
+            <aside>
+
+<section class="well well-sm">
+    <ul class="list-group list-group-flush shadow">
+            <li class="list-group-item"><h4><i class="fa fa-home fa-lg"></i><span class="icon-label">Social</span></h4>
+              <ul class="list-group" id="social">
+                <li class="list-group-item"><a href="http://github.com/markus-beuckelmann"><i class="fa fa-github-square fa-lg"></i> GitHub</a></li>
+                <li class="list-group-item"><a href="https://keybase.io/markus_"><i class="fa fa-lock fa-lg"></i> Keybase</a></li>
+              </ul>
+            </li>
+
+
+
+
+
+    <li class="list-group-item"><h4><i class="fa fa-external-link-square fa-lg"></i><span class="icon-label">Links</span></h4>
+      <ul class="list-group" id="links">
+        <li class="list-group-item">
+            <a href="http://markus-beuckelmann.de/feeds/blog.xml" target="_blank"><i class="fa fa-rss fa-lg"></i>RSS (Blog)</a>
+        </li>
+        <li class="list-group-item">
+            <a href="http://markus-beuckelmann.de/feeds/links.xml" target="_blank"><i class="fa fa-rss fa-lg"></i>RSS (Links)</a>
+        </li>
+        <li class="list-group-item">
+            <a href="http://lltk.de/" target="_blank"><i class="fa fa-globe fa-lg"></i>Language Learning Toolkit</a>
+        </li>
+        <li class="list-group-item">
+            <a href="http://lltk.de/batyr/launch/en" target="_blank"><i class="fa fa-globe fa-lg"></i>Batyr</a>
+        </li>
+      </ul>
+    </li>
+
+    <li class="list-group-item"><h4><i class="fa fa-github fa-lg"></i><span class="icon-label">GitHub</span></h4>
+        <div id="gh_repos"><ul class="list-group" id="github"><li class="list-group-item"><a href="https://github.com/markus-beuckelmann/universs">universs</a><p><small>Self–hosted RSS for everyone. Built in 7 days, comes with rolling releases.</small></p></li><li class="list-group-item"><a href="https://github.com/markus-beuckelmann/sphinx">sphinx</a><p><small>Main repository for the Sphinx documentation builder</small></p></li><li class="list-group-item"><a href="https://github.com/markus-beuckelmann/pattern">pattern</a><p><small>Web mining module for Python, with tools for scraping, natural language processing, machine learning, network analysis and visualization.</small></p></li><li class="list-group-item"><a href="https://github.com/markus-beuckelmann/gensim">gensim</a><p><small>Topic Modelling for Humans</small></p></li><li class="list-group-item"><a href="https://github.com/markus-beuckelmann/stingray">stingray</a><p><small>Time series methods for astronomical X-ray data that aren't fishy at all!</small></p></li></ul></div>
+    </li>
+    </ul>
+</section>            </aside>
+        </div>
+    </div>
+</div><div class="DARKY_BlueFilter DARKY_Filter"></div><div class="DARKY_YellowFilter DARKY_Filter"></div><div class="DARKY_DimFilter DARKY_Filter"></div><script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/MathJax.js.download" id="mathjaxscript_pelican_#%@#$@#">MathJax.Hub.Config({    config: ['MMLorHTML.js'],    TeX: { extensions: ['AMSmath.js','AMSsymbols.js','noErrors.js','noUndefined.js'], equationNumbers: { autoNumber: 'AMS' } },    jax: ['input/TeX','input/MathML','output/HTML-CSS'],    extensions: ['tex2jax.js','mml2jax.js','MathMenu.js','MathZoom.js'],    displayAlign: 'center',    displayIndent: '0em',    showMathMenu: true,    messageStyle: 'normal',    tex2jax: {         inlineMath: [ ['\\(','\\)'] ],         displayMath: [ ['$$','$$'] ],        processEscapes: true,        preview: 'LaTex rendering...',    },     'HTML-CSS': {         styles: { '.MathJax_Display, .MathJax .mo, .MathJax .mi, .MathJax .mn': {color: 'inherit ! important'} },        linebreaks: { automatic: false, width: '90% container' },    }, }); if ('default' !== 'default') {MathJax.Hub.Register.StartupHook('HTML-CSS Jax Ready',function () {var VARIANT = MathJax.OutputJax['HTML-CSS'].FONTDATA.VARIANT;VARIANT['normal'].fonts.unshift('MathJax_default');VARIANT['bold'].fonts.unshift('MathJax_default-bold');VARIANT['italic'].fonts.unshift('MathJax_default-italic');VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');});MathJax.Hub.Register.StartupHook('SVG Jax Ready',function () {var VARIANT = MathJax.OutputJax.SVG.FONTDATA.VARIANT;VARIANT['normal'].fonts.unshift('MathJax_default');VARIANT['bold'].fonts.unshift('MathJax_default-bold');VARIANT['italic'].fonts.unshift('MathJax_default-italic');VARIANT['-tex-mathit'].fonts.unshift('MathJax_default-italic');});}</script>
+<footer>
+   <div class="container-fluid">
+      <hr>
+      <div class="row">
+          <div class="col-xs-10">© 2018 Markus Beuckelmann
+               · Standing on the shoulders of giants: <a href="http://docs.getpelican.com/" target="_blank">Pelican</a> &amp; <a href="http://getbootstrap.com/" target="_blank">Bootstrap</a> (Theme based on <a href="https://github.com/getpelican/pelican-themes/tree/master/pelican-bootstrap3" target="_blank">pelican-bootstrap3</a>) · <a href="http://markus-beuckelmann.de/pages/impressum.html">Impressum</a>           </div>
+          <div class="col-xs-2"><p class="pull-right"><i class="fa fa-arrow-up"></i> <a href="http://markus-beuckelmann.de/blog/boosting-numpy-blas.html#">Back to top</a></p></div>
+      </div>
+   </div>
+</footer>
+<script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/jquery.min.js.download"></script>
+
+<!-- Include all compiled plugins (below), or include individual files as needed -->
+<script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/bootstrap.min.js.download"></script>
+
+<!-- Enable responsive features in IE8 with Respond.js (https://github.com/scottjehl/Respond) -->
+<script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/respond.min.js.download"></script>
+
+    <!-- GitHub JS -->
+    <script type="text/javascript">
+        $(document).ready(function () {
+            if (!window.jXHR) {
+                var jxhr = document.createElement('script');
+                jxhr.type = 'text/javascript';
+                jxhr.src = '../theme/js/jXHR.js';
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(jxhr, s);
+            }
+
+            github.showRepos({
+                user: 'markus-beuckelmann',
+                count: 5,
+                skip_forks: false,
+                target: '#gh_repos'
+            });
+        });
+    </script>
+    <script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/github.js.download" type="text/javascript"></script>
+    <!-- End GitHub JS Code -->
+    <!-- Google Analytics -->
+    <script type="text/javascript">
+
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', 'UA-90999991-1']);
+        _gaq.push(['_trackPageview']);
+
+        (function () {
+            var ga = document.createElement('script');
+            ga.type = 'text/javascript';
+            ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(ga, s);
+        })();
+    </script>
+    <!-- End Google Analytics Code -->
+
+
+
+
+    <script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/responsive.js.download"></script>
+    <script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/anchor.min.js.download"></script>
+    <script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/jquery.swipebox.min.js.download"></script>
+
+    <script src="./Boosting numpy_ Why BLAS Matters - Weblog_files/onready.js.download"></script>
+
+
+<div style="position: absolute; width: 0px; height: 0px; overflow: hidden; padding: 0px; border: 0px; margin: 0px;"><div id="MathJax_Font_Test" style="position: absolute; visibility: hidden; top: 0px; left: 0px; width: auto; padding: 0px; border: 0px; margin: 0px; white-space: nowrap; text-align: left; text-indent: 0px; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; font-size: 40px; font-weight: normal; font-style: normal; font-family: MathJax_Main, sans-serif;"></div></div></body></html>

@@ -1,0 +1,23 @@
+/* This will wrap all tables with class "highlighttable" into a <div> which will make the table responsive (Bootstrap does that). */
+
+$(document).ready(function() {
+
+    makeTablesResponsive();
+    /*makeHighlightResponsive();*/
+    makeMathJaxResponsive()
+
+});
+
+function makeTablesResponsive() {
+    $('table').wrap('<div class="table-responsive"></div>');
+};
+
+function makeMathJaxResponsive() {
+    $('div.math').wrap('<div class="table-responsive"></div>');
+};
+
+/*
+function makeHighlightResponsive() {
+    $('table.highlighttable').wrap('<div class="table-responsive"></div>');
+};
+*/
