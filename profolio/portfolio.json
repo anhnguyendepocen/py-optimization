@@ -1,0 +1,16 @@
+{
+    "title":"Optimizing Python Code for Scientific Computing",
+    "description":"Study of techniques and tooling for optimizing Python code for expensive computations in scientific computing.",
+    "tags":{
+       "languages":[
+          "python", "cython"
+       ],
+       "tooling":[
+          "numpy", "numexpr", "cython", "pytorch", "pytoolz", "numba", "plotly", "open-gl", "pyqt", "functools", "itertools"
+       ],
+       "keywords":[
+          "neural networks", "tensor calculus", "parallelization", "JIT-compiling", "visualization", "heat flow", "differential equations", "research", "calculus"
+       ]
+    },
+    "n_images":4
+ }
